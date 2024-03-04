@@ -14,7 +14,7 @@ pub struct Configuration {
 
 pub struct Context<T>
 where
-    T: UserDB + 'static
+    T: UserDB + 'static,
 {
     pub db: Arc<T>,
     pub config: Arc<Configuration>,

@@ -1,5 +1,4 @@
 #[allow(dead_code)]
-
 mod example {
     enum CustomError {
         FileReadError(std::io::Error),
@@ -7,7 +6,6 @@ mod example {
     }
 
     fn example_error() -> Result<(), CustomError> {
-
         // let response = reqwest::blocking::get("https://google.com")?;
 
         Ok(())

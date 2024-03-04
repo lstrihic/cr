@@ -1,5 +1,5 @@
-
 use actix_web::{get, HttpResponse, Responder, web};
+
 use common::Context;
 use database::DB;
 use database::user::UserDB;
@@ -22,7 +22,6 @@ async fn auth(provider: web::Path<String>, context: web::Data<Context<DB>>) -> i
 
     let result = context.db.find_all_users().await.unwrap();
     println!("{:?}", result);
-
 
     return HttpResponse::Ok().body(format!("Hello {:?}!", provider));
 }

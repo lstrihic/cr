@@ -1,5 +1,7 @@
 -- Enable crypto extension
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE
+EXTENSION
+IF NOT EXISTS "pgcrypto";
 
 CREATE OR REPLACE FUNCTION unique_short_id()
     RETURNS TRIGGER AS $$
@@ -23,7 +25,8 @@ BEGIN
         -- Base64 encoding contains 2 URL unsafe characters by default.
         -- The URL-safe version has these replacements.
         key := replace(key, '/', 'x'); -- url safe replacement
-        key := replace(key, '+', 'y'); -- url safe replacement
+        key := replace(key, '+', 'y');
+        -- url safe replacement
 
         -- Concat the generated key (safely quoted) with the generated query
         -- and run it.
@@ -47,7 +50,11 @@ BEGIN
     -- NEW is the mutated row that will actually be INSERTed.
     -- We're replacing id, regardless of what it was before
     -- with our key variable.
-    NEW.id = key;
+    NEW
+    .
+    id
+    =
+    key;
 
   -- The RECORD returned here is what will actually be INSERTed,
   -- or what the next trigger will get if there is one.

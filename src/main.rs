@@ -6,12 +6,12 @@
 
 use std::sync::Arc;
 
-use actix_web::{web, App, HttpServer};
+use actix_web::{App, HttpServer, web};
 use anyhow::Result;
 use config::{Config, Environment, File};
 use log::info;
-use sqlx::postgres::PgPoolOptions;
 use sqlx::{Pool, Postgres};
+use sqlx::postgres::PgPoolOptions;
 use web::Data;
 
 use common::{Configuration, Context};
