@@ -1,3 +1,5 @@
+mod example;
+
 pub mod destructing {
 
 

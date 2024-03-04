@@ -1,99 +1,64 @@
+#![feature(exitcode_exit_method)]
 // https://doc.rust-lang.org/stable/rust-by-example/std/rc.html
 // https://github.com/sunface/rust-by-practice/tree/master/solutions
 // https://lise-henry.github.io/books/trpl2.pdf
 // https://google.github.io/comprehensive-rust/control-flow-basics/blocks-and-scopes/scopes.html
 
-// #[tokio::main]
+use std::sync::Arc;
 
+use actix_web::{web, App, HttpServer};
+use anyhow::Result;
+use config::{Config, Environment, File};
+use log::info;
+use sqlx::postgres::PgPoolOptions;
+use sqlx::{Pool, Postgres};
+use web::Data;
 
-use std::cell::{Cell, RefCell};
-use std::rc::Rc;
-
-fn say_hello(name: String) {
-    println!("Hello {name}")
-}
-
-fn say_hello_ref(name: &String) {
-    println!("Hello {name}")
-}
-
-#[derive(Debug, Default)]
-struct Node {
-    value: Cell<i32>,
-    ref_value: RefCell<i32>
-}
+use common::{Configuration, Context};
+use database::DB;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<()> {
+    // logger
+    env_logger::builder()
+        .filter_level(log::LevelFilter::Info)
+        .init();
 
-    // rust ownership rules
-    let s1: String = String::from("Hello!");
-    let s2: String = s1; // s1 out of the scope it does not own anything:
-    println!("s2: {s2}");
-    // println!("s1: {s1}");
+    // configuration
+    info!("Loading configurations...");
+    let config = Config::builder()
+        .add_source(File::with_name("config.yml"))
+        .add_source(Environment::with_prefix("CR"))
+        .build()?;
+    let configuration: Configuration = config.try_deserialize().unwrap();
+    let configuration = Arc::new(configuration);
 
+    info!("Connecting to database...");
+    let pool: Pool<Postgres> = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&configuration.db_url())
+        .await?;
 
-    let s1: String = String::from("Hello!");
-    say_hello(s1); // the same happens here, the function is a new owner
-    println!("s2: {s2}");
-    // println!("s1: {s1}");
+    // migrations
+    info!("Applying migrations");
+    migrations::run_migration(&configuration.db_url())
+        .await
+        .expect("error");
 
-    // but this
-    let s1: String = String::from("Hello!");
-    say_hello_ref(&s1);
-    println!("s2: {s2}");
-    println!("s1: {s1}");
+    let db = Arc::new(DB::new(pool));
 
-    // coping for some types are by default
-    let x = 42;
-    let y = x;
-    println!("x: {x}"); // would not be accessible if not Copy
-    println!("y: {y}");
-
-    // smart pointer
-    let value = Box::new(24);
-
-    println!("{}", value); // box does implement Deref so we can directly access value
-
-
-    let a = Rc::new(10);
-    let b = Rc::clone(&a); // is cheap: it creates a pointer to the same allocation and increases the reference count.
-    // Does not make a deep clone and can generally be ignored when looking for performance issues in code.
-
-    println!("a: {:p}", a);
-    println!("b: {:p}", b);
-
-    // print_int(a);
-    // print_int(b.into());
-
-
-    let node = Node {
-        value: Cell::new(13),
-        ref_value: RefCell::new(43),
-    };
-
-    node.value.set(341);
-    *node.ref_value.borrow_mut() = 34;
-
-
-    println!("{:?}", node.value);
-
-
-    let mut a: [i32; 6] = [10, 20, 30, 40, 50, 60];
-    println!("a: {a:?}");
-
-    let s: &[i32] = &a[2..4];
-
-
-
-    println!("s: {s:?}");
-
-
-    // migrations::run_migration().await.expect("error");
+    info!("Starting server...");
+    HttpServer::new(move || {
+        App::new()
+            .app_data(Data::new(Context {
+                db: db.clone(),
+                config: configuration.clone(),
+            }))
+            .service(web::scope("/oauth2").configure(idp::oauth2_scope))
+    })
+    .bind(("127.0.0.1", 8080))?
+    .run()
+    .await?;
 
     Ok(())
-}
-
-fn print_int(x: &i32) {
-    print!("{}\n", x);
 }
